@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Sensor DHT11</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Times New Roman', sans-serif;
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 1s ease-in-out;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+        .data-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 2rem;
+        }
+        .data-box {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            width: 45%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .data-box:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        .data-box h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .data-box h2 i {
+            margin-right: 10px;
+        }
+        .data-box p {
+            font-size: 2rem;
+            margin: 0;
+            font-weight: bold;
+        }
+        .network-image {
+            margin-top: 2rem;
+        }
+        .network-image img {
+            width: 150px;
+            height: auto;
+            border-radius: 10px;
+            transition: transform 0.3s ease;
+        }
+        .network-image img:hover {
+            transform: scale(1.1);
+        }
+        .chart-container {
+            margin-top: 2rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 1rem;
+            border-radius: 10px;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i class="fas fa-moon"></i>
+        </button>
+        <h2>Monitor de Temperatura y Humedad</h2>
+        <div class="data-container">
+            <div class="data-box">
+                <h2><i class="fas fa-thermometer-half"></i>Temperatura</h2>
+                <p id="temperatura">Cargando...</p>
+            </div>
+            <div class="data-box">
+                <h2><i class="fas fa-tint"></i>Humedad</h2>
+                <p id="humedad">Cargando...</p>
+            </div>
+        </div>
+        <div class="chart-container">
+            <canvas id="sensorChart"></canvas>
+        </div>
+        <div class="network-image">
+            <a href="https://w7.pngwing.com/pngs/544/863/png-transparent-humidity-sensor-temperature-data-logger-moisture-temperature-miscellaneous-teal-wireless-sensor-network-thumbnail.png" target="_blank">
+                <img src="https://w7.pngwing.com/pngs/544/863/png-transparent-humidity-sensor-temperature-data-logger-moisture-temperature-miscellaneous-teal-wireless-sensor-network-thumbnail.png" alt="Imagen de la red">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Datos para el gráfico
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Tiempo
+                datasets: [{
+                    label: 'Temp (°C)',
+                    data: [],
+                    borderColor: '#ff6384',
+                    fill: false,
+                }, {
+                    label: 'Hum (%)',
+                    data: [],
+                    borderColor: '#36a2eb',
+                    fill: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                    }
+                }
+            }
+        });
+
+        // Función para actualizar datos
+        function obtenerDatos() {
+            fetch('obtener_datos.php')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("temperatura").innerText = data.temperatura + " °C";
+                    document.getElementById("humedad").innerText = data.humedad + " %";
+
+                    // Actualizar gráfico
+                    const tiempo = new Date().toLocaleTimeString();
+                    chart.data.labels.push(tiempo);
+                    chart.data.datasets[0].data.push(data.temperatura);
+                    chart.data.datasets[1].data.push(data.humedad);
+                    chart.update();
+                })
+                .catch(error => console.error('Error :', error));
+        }
+
+        setInterval(obtenerDatos, 5000); // Actualiza cada 5 segundos
+        window.onload = obtenerDatos;
+
+        // Cambiar tema
+        function toggleTheme() {
+            document.body.classList.toggle('dark-theme');
+            const icon = document.querySelector('.theme-toggle i');
+            icon.classList.toggle('fa-moon');
+            icon.classList.toggle('fa-sun');
+        }
+    </script>
+</body>
+</html>
